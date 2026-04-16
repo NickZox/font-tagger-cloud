@@ -1,10 +1,300 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Font Tagger Test</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Font Tagger - Cloud</title>
+<style>
+:root {
+  --bg: #0c0c0c; --surface: #161616; --border: #272727;
+  --accent: #c8953a; --text: #eae4db; --muted: #66605a;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: Georgia, serif; padding: 20px; }
+.header { text-align: center; margin-bottom: 30px; }
+.status { padding: 10px; background: var(--surface); border-radius: 5px; margin-bottom: 20px; }
+.form { background: var(--surface); padding: 20px; border-radius: 5px; max-width: 600px; margin: 0 auto; }
+.field { margin-bottom: 15px; }
+label { display: block; margin-bottom: 5px; font-weight: bold; }
+input, select, textarea { width: 100%; padding: 8px; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 3px; }
+button { background: var(--accent); color: #000; padding: 10px 20px; border: none; border-radius: 3px; cursor: pointer; }
+.fonts-list { margin-top: 20px; }
+.font-item { background: var(--surface); padding: 10px; margin: 5px 0; border-radius: 3px; }
+</style>
 </head>
 <body>
-<h1>Font Tagger Test</h1>
-<p>If you can see this, the deployment is working!</p>
+
+<div class="header">
+  <h1>⬡ Font Tagger - Cloud</h1>
+  <p>Tag fonts for the wristband selector</p>
+</div>
+
+<div class="status" id="status">
+  <strong>Status:</strong> <span id="status-text">Loading...</span>
+</div>
+
+<div class="form">
+  <h2>Add/Edit Font</h2>
+  
+  <div class="field">
+    <label for="font-name">Font Name:</label>
+    <input type="text" id="font-name" placeholder="Enter font name">
+  </div>
+  
+  <div class="field">
+    <label for="mood">Mood:</label>
+    <select id="mood" multiple>
+      <option value="Professional">Professional</option>
+      <option value="Friendly">Friendly</option>
+      <option value="Elegant">Elegant</option>
+      <option value="Bold">Bold</option>
+      <option value="Dark">Dark</option>
+      <option value="Playful">Playful</option>
+      <option value="Creative">Creative</option>
+      <option value="Sophisticated">Sophisticated</option>
+    </select>
+  </div>
+  
+  <div class="field">
+    <label for="era">Era:</label>
+    <select id="era" multiple>
+      <option value="Ancient">Ancient</option>
+      <option value="Classical">Classical</option>
+      <option value="Medieval">Medieval</option>
+      <option value="Renaissance">Renaissance</option>
+      <option value="Victorian">Victorian</option>
+      <option value="Art Nouveau">Art Nouveau</option>
+      <option value="Art Deco">Art Deco</option>
+      <option value="Mid Century">Mid Century</option>
+      <option value="Modern">Modern</option>
+      <option value="Contemporary">Contemporary</option>
+      <option value="Future">Future</option>
+      <option value="Retro">Retro</option>
+      <option value="Vintage">Vintage</option>
+      <option value="Industrial">Industrial</option>
+      <option value="Digital">Digital</option>
+    </select>
+  </div>
+  
+  <div class="field">
+    <label for="energy">Energy Level:</label>
+    <select id="energy">
+      <option value="">Select...</option>
+      <option value="Low">Low</option>
+      <option value="Medium">Medium</option>
+      <option value="High">High</option>
+    </select>
+  </div>
+  
+  <div class="field">
+    <label for="weight">Weight:</label>
+    <select id="weight" multiple>
+      <option value="Thin">Thin</option>
+      <option value="Medium">Medium</option>
+      <option value="Bold">Bold</option>
+    </select>
+  </div>
+  
+  <div class="field">
+    <label for="form">Structural Form:</label>
+    <select id="form" multiple>
+      <option value="Serif">Serif</option>
+      <option value="Sans-Serif">Sans-Serif</option>
+      <option value="Script">Script</option>
+      <option value="Rounded">Rounded</option>
+      <option value="Decorative">Decorative</option>
+    </select>
+  </div>
+  
+  <div class="field">
+    <label for="style">Aesthetic Style:</label>
+    <select id="style" multiple>
+      <option value="Brush">Brush</option>
+      <option value="Calligraphic">Calligraphic</option>
+      <option value="Cartoony">Cartoony</option>
+      <option value="Celtic">Celtic</option>
+      <option value="Distressed">Distressed</option>
+      <option value="Futuristic">Futuristic</option>
+      <option value="Gothic">Gothic</option>
+      <option value="Grunge">Grunge</option>
+      <option value="Hand Drawn">Hand Drawn</option>
+      <option value="Minimalist">Minimalist</option>
+      <option value="Ornate">Ornate</option>
+      <option value="Stencil">Stencil</option>
+    </select>
+  </div>
+  
+  <div class="field">
+    <label for="theme">Theme:</label>
+    <select id="theme" multiple>
+      <option value="Botanical">Botanical</option>
+      <option value="Corporate">Corporate</option>
+      <option value="Fantasy">Fantasy</option>
+      <option value="Gaming">Gaming</option>
+      <option value="Holiday">Holiday</option>
+      <option value="Horror">Horror</option>
+      <option value="Military">Military</option>
+      <option value="Music">Music</option>
+      <option value="Sports">Sports</option>
+    </select>
+  </div>
+  
+  <button onclick="saveFont()">Save Font</button>
+  <button onclick="loadNextFont()" style="margin-left: 10px;">Next Untagged</button>
+  <button onclick="clearForm()" style="margin-left: 10px;">Clear</button>
+  
+  <div id="progress" style="margin-top: 10px; font-size: 12px; color: var(--muted);"></div>
+</div>
+
+<div class="fonts-list">
+  <h2>Recent Fonts</h2>
+  <div id="fonts-container"></div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://hlqeoouwsoxjphdunzya.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhscWVvb3V3c294anBoZHVuenlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ0NzU3MDMsImV4cCI6MjA1MDA1MTcwM30.C8rByO4dw0UrIr3nTr4ZQzfINJcCGKwHWLNPg2D8eJo';
+
+let allFonts = [];
+
+async function supabaseRequest(path, options = {}) {
+  const response = await fetch(`${SUPABASE_URL}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      ...options.headers
+    }
+  });
+  
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+  }
+  
+  return response.json();
+}
+
+async function loadFonts() {
+  try {
+    document.getElementById('status-text').textContent = 'Loading fonts...';
+    allFonts = await supabaseRequest('/rest/v1/fonts?select=*&limit=3000');
+    
+    const tagged = allFonts.filter(f => f.manually_tagged).length;
+    const total = allFonts.length;
+    
+    document.getElementById('status-text').textContent = `Connected to Supabase - ${total} fonts (${tagged} tagged)`;
+    document.getElementById('progress').textContent = `Progress: ${tagged}/${total} fonts manually tagged`;
+    
+    displayRecentFonts();
+  } catch (error) {
+    document.getElementById('status-text').textContent = `Error: ${error.message}`;
+  }
+}
+
+function displayRecentFonts() {
+  const container = document.getElementById('fonts-container');
+  const recent = allFonts.slice(-10).reverse();
+  
+  container.innerHTML = recent.map(font => `
+    <div class="font-item" onclick="editFont('${font.font_name}')">
+      <strong>${font.font_name}</strong>
+      ${font.manually_tagged ? '✓' : '○'}
+    </div>
+  `).join('');
+}
+
+async function saveFont() {
+  const fontName = document.getElementById('font-name').value.trim();
+  if (!fontName) {
+    alert('Please enter a font name');
+    return;
+  }
+  
+  const getMultiSelectValues = (id) => {
+    const select = document.getElementById(id);
+    return Array.from(select.selectedOptions).map(opt => opt.value).join(';');
+  };
+  
+  const fontData = {
+    font_name: fontName,
+    mood: getMultiSelectValues('mood'),
+    era: getMultiSelectValues('era'),
+    energy_level: document.getElementById('energy').value,
+    weight: getMultiSelectValues('weight'),
+    structural_form: getMultiSelectValues('form'),
+    aesthetic_style: getMultiSelectValues('style'),
+    theme: getMultiSelectValues('theme'),
+    manually_tagged: true
+  };
+  
+  try {
+    await supabaseRequest('/rest/v1/fonts', {
+      method: 'POST',
+      headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify([fontData])
+    });
+    
+    alert(`Font "${fontName}" saved successfully!`);
+    clearForm();
+    loadFonts();
+  } catch (error) {
+    alert(`Save failed: ${error.message}`);
+  }
+}
+
+function clearForm() {
+  document.getElementById('font-name').value = '';
+  ['mood', 'era', 'weight', 'form', 'style', 'theme'].forEach(id => {
+    document.getElementById(id).selectedIndex = -1;
+  });
+  document.getElementById('energy').selectedIndex = 0;
+}
+
+async function loadNextFont() {
+  const untagged = allFonts.filter(f => !f.manually_tagged);
+  if (untagged.length === 0) {
+    alert('All fonts have been tagged!');
+    return;
+  }
+  
+  const next = untagged[0];
+  document.getElementById('font-name').value = next.font_name;
+  
+  // Clear existing selections
+  clearForm();
+  document.getElementById('font-name').value = next.font_name;
+  
+  alert(`Loaded: ${next.font_name}`);
+}
+
+function editFont(fontName) {
+  const font = allFonts.find(f => f.font_name === fontName);
+  if (!font) return;
+  
+  document.getElementById('font-name').value = font.font_name;
+  document.getElementById('energy').value = font.energy_level || '';
+  
+  // Set multi-select values
+  const setMultiSelect = (id, value) => {
+    const select = document.getElementById(id);
+    const values = (value || '').split(';').filter(v => v.trim());
+    for (let option of select.options) {
+      option.selected = values.includes(option.value);
+    }
+  };
+  
+  setMultiSelect('mood', font.mood);
+  setMultiSelect('era', font.era);
+  setMultiSelect('weight', font.weight);
+  setMultiSelect('form', font.structural_form);
+  setMultiSelect('style', font.aesthetic_style);
+  setMultiSelect('theme', font.theme);
+}
+
+// Load fonts when page loads
+window.addEventListener('DOMContentLoaded', loadFonts);
+</script>
+
 </body>
 </html>
