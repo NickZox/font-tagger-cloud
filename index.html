@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Font Tagger - Cloud</title>
+<style>
+:root {
+  --bg:#0c0c0c;--surface:#161616;--surface2:#1e1e1e;--border:#272727;--border2:#333;
+  --accent:#c8953a;--accent-dim:rgba(200,149,58,0.12);--accent-hi:#e8a84e;
+  --text:#eae4db;--muted:#66605a;--muted2:#888;--err:#c45a5a;--ok:#5a9a6a;
+  --r:5px;--serif:Georgia,'Times New Roman',serif;--mono:'Courier New',Courier,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);font-family:var(--serif);font-size:14px;line-height:1.5;overflow:hidden}
+
+header{position:fixed;top:0;left:0;right:0;z-index:100;height:52px;padding:0 1.5rem;background:rgba(12,12,12,.96);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.logo{font-family:var(--mono);font-size:.75rem;letter-spacing:.2em;text-transform:uppercase;color:var(--accent)}
+.hdr-right{display:flex;align-items:center;gap:1rem}
+.server-pill{display:flex;align-items:center;gap:.4rem;font-family:var(--mono);font-size:.6rem;letter-spacing:.08em;color:var(--muted)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .3s}
+.dot.on{background:var(--ok)}.dot.off{background:var(--err)}
+.btn{padding:.5rem 1.1rem;border:1px solid var(--border);background:transparent;color:var(--text);font-family:var(--mono);font-size:.7rem;letter-spacing:.1em;cursor:pointer;border-radius:var(--r);transition:all .15s;white-space:nowrap}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.prime{background:var(--accent);border-color:var(--accent);color:#000;font-weight:700}
+.btn.prime:hover{background:var(--accent-hi);border-color:var(--accent-hi)}
+.btn.xs{padding:.3rem .65rem;font-size:.6rem}
+.btn.danger{border-color:var(--err);color:var(--err)}.btn.danger:hover{background:var(--err);color:#000}
+.btn:disabled{opacity:.3;cursor:default;pointer-events:none}
+
+.layout{display:flex;height:calc(100vh - 52px);margin-top:52px}
+
+/* Left panel — font list */
+.font-list-panel{width:280px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.list-header{padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:.6rem}
+.list-header-row{display:flex;align-items:center;justify-content:space-between}
+.filter-row{display:flex;gap:.4rem}
+.filter-btn{padding:.25rem .6rem;font-family:var(--mono);font-size:.55rem;letter-spacing:.06em;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:3px;cursor:pointer;transition:all .15s}
+.filter-btn:hover{border-color:var(--accent);color:var(--accent)}
+.filter-btn.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
+.search-inp{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:.45rem .7rem;color:var(--text);font-family:var(--mono);font-size:.7rem;transition:border-color .15s}
+.search-inp:focus{outline:none;border-color:var(--accent)}
+.search-inp::placeholder{color:var(--muted)}
+.font-list{flex:1;overflow-y:auto;padding:.5rem}
+.font-item{padding:.6rem .75rem;border-radius:var(--r);cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all .12s;border:1px solid transparent;margin-bottom:2px}
+.font-item:hover{background:var(--surface);border-color:var(--border)}
+.font-item.active{background:var(--accent-dim);border-color:rgba(200,149,58,.3)}
+.font-item-name{font-family:var(--mono);font-size:.65rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px}
+.font-item-status{font-family:var(--mono);font-size:.5rem;padding:.1rem .3rem;border-radius:3px}
+.font-item-status.tagged{color:var(--ok);background:rgba(90,154,106,.12)}
+.font-item-status.untagged{color:var(--muted);background:var(--surface2)}
+.list-footer{padding:.6rem 1rem;border-top:1px solid var(--border);font-family:var(--mono);font-size:.6rem;color:var(--muted);display:flex;justify-content:space-between}
+
+/* Right panel — tagger */
+.tagger-panel{flex:1;overflow-y:auto;padding:2rem 2.5rem}
+.tagger-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;gap:.9rem;color:var(--muted);font-family:var(--mono);font-size:.75rem;text-align:center}
+.tagger-empty-glyph{font-size:3.5rem;color:var(--border);font-family:var(--serif)}
+
+.tagger-content{display:none}
+.font-title{font-family:var(--mono);font-size:.85rem;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);margin-bottom:1.5rem;display:flex;align-items:center;gap:1rem}
+.font-title span{font-size:.6rem;color:var(--muted);text-transform:none;letter-spacing:.06em}
+
+/* Preview area */
+.preview-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1.5rem;margin-bottom:1.75rem}
+.preview-input-row{display:flex;gap:.75rem;align-items:center;margin-bottom:1rem}
+.preview-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:.5rem .75rem;color:var(--text);font-family:var(--mono);font-size:.8rem}
+.preview-input:focus{outline:none;border-color:var(--accent)}
+.preview-lines{display:flex;flex-direction:column;gap:.6rem}
+.preview-case-label{font-family:var(--mono);font-size:.42rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.15rem}
+.preview-text{line-height:1.15;color:var(--text);word-break:break-word}
+.preview-text.upper{font-size:2.8rem}
+.preview-text.title{font-size:2.4rem}
+.preview-text.lower{font-size:2rem}
+
+/* Tag sections */
+.tag-sections{display:flex;flex-direction:column;gap:1.25rem;margin-bottom:1.75rem}
+.tag-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1rem 1.25rem}
+.tag-section-name{font-family:var(--mono);font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:.6rem}
+.tag-options{display:flex;flex-wrap:wrap;gap:.35rem}
+.tag-opt{padding:.3rem .7rem;border:1px solid var(--border);background:transparent;color:var(--muted2);font-family:var(--mono);font-size:.65rem;letter-spacing:.04em;border-radius:3px;cursor:pointer;transition:all .15s}
+.tag-opt:hover{border-color:var(--accent);color:var(--accent)}
+.tag-opt.selected{background:var(--accent);border-color:var(--accent);color:#000;font-weight:700}
+.tag-custom{margin-top:.5rem;display:flex;gap:.4rem;align-items:center}
+.tag-custom input{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:.35rem .6rem;color:var(--text);font-family:var(--mono);font-size:.65rem;width:160px}
+.tag-custom input:focus{outline:none;border-color:var(--accent)}
+.tag-custom button{padding:.35rem .6rem;font-family:var(--mono);font-size:.6rem;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:3px;cursor:pointer}
+.tag-custom button:hover{border-color:var(--accent);color:var(--accent)}
+
+/* Notes */
+.notes-section{margin-bottom:1.75rem}
+.notes-section textarea{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:.75rem 1rem;color:var(--text);font-family:var(--mono);font-size:.72rem;line-height:1.7;min-height:70px;resize:vertical}
+.notes-section textarea:focus{outline:none;border-color:var(--accent)}
+.notes-section .label{font-family:var(--mono);font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:.4rem}
+
+/* Action bar */
+.action-bar{display:flex;gap:.75rem;align-items:center;padding-top:1rem;border-top:1px solid var(--border)}
+.action-bar .spacer{flex:1}
+
+/* Toast */
+.toast{position:fixed;bottom:1.25rem;left:50%;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);padding:.5rem 1.1rem;font-family:var(--mono);font-size:.7rem;display:none;align-items:center;gap:.65rem;z-index:500;box-shadow:0 6px 24px rgba(0,0,0,.5);white-space:nowrap}
+.toast.show{display:flex}
+.toast.err{border-color:var(--err);color:var(--err)}
+.toast.ok{border-color:var(--ok);color:var(--ok)}
+.spin{width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Settings modal */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:300;display:none;align-items:center;justify-content:center;backdrop-filter:blur(5px)}
+.overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:1.75rem;width:100%;max-width:440px;max-height:85vh;overflow-y:auto;position:relative}
+.modal h2{font-family:var(--mono);font-size:.75rem;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);font-weight:normal;margin-bottom:1.4rem}
+.modal-x{position:absolute;top:.9rem;right:.9rem;background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;padding:.2rem .4rem;line-height:1}
+.modal-x:hover{color:var(--text)}
+.field{margin-bottom:1rem}
+.field label{display:block;font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.35rem}
+.inp{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:.65rem .9rem;color:var(--text);font-family:var(--mono);font-size:.8rem;transition:border-color .15s}
+.inp:focus{outline:none;border-color:var(--accent)}
+.btn-row{display:flex;gap:.5rem}
+
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:10px}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo">⬡ Font Tagger - Cloud</span>
+  <div class="hdr-right">
+    <div class="server-pill"><span class="dot" id="sdot"></span><span id="stxt">cloud server</span></div>
+    <button class="btn xs" onclick="openModal('cfg-modal')">⚙ Settings</button>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- Font list -->
+  <div class="font-list-panel">
+    <div class="list-header">
+      <div class="list-header-row">
+        <span style="font-family:var(--mono);font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)">Font Library</span>
+      </div>
+      <input class="search-inp" type="text" id="search" placeholder="Search fonts…" oninput="renderList()">
+      <div class="filter-row">
+        <button class="filter-btn active" data-filter="untagged" onclick="setFilter('untagged')">Untagged</button>
+        <button class="filter-btn" data-filter="tagged" onclick="setFilter('tagged')">Tagged</button>
+        <button class="filter-btn" data-filter="all" onclick="setFilter('all')">All</button>
+      </div>
+    </div>
+    <div class="font-list" id="font-list"></div>
+    <div class="list-footer">
+      <span id="list-count">— shown</span>
+      <span id="list-total">— tagged</span>
+    </div>
+  </div>
+
+  <!-- Tagger -->
+  <div class="tagger-panel">
+    <div class="tagger-empty" id="empty-state">
+      <span class="tagger-empty-glyph">Aa</span>
+      <span>Select a font to begin tagging</span>
+    </div>
+
+    <div class="tagger-content" id="tagger-content">
+      <div class="font-title" id="font-title">
+        <span>Font Name</span>
+      </div>
+
+      <!-- Preview -->
+      <div class="preview-section">
+        <div class="preview-input-row">
+          <input class="preview-input" type="text" id="preview-text" value="The Quick Brown Fox" oninput="updatePreviews()">
+          <button class="btn xs" onclick="el('preview-text').value='ABCDEFGHIJKLMNOPQRSTUVWXYZ';updatePreviews()">ABC</button>
+          <button class="btn xs" onclick="el('preview-text').value='0123456789';updatePreviews()">123</button>
+        </div>
+        <div class="preview-lines">
+          <div><div class="preview-case-label">Uppercase</div><div class="preview-text upper" id="pv-upper">THE QUICK BROWN FOX</div></div>
+          <div><div class="preview-case-label">Title Case</div><div class="preview-text title" id="pv-title">The Quick Brown Fox</div></div>
+          <div><div class="preview-case-label">Lowercase</div><div class="preview-text lower" id="pv-lower">the quick brown fox</div></div>
+        </div>
+      </div>
+
+      <!-- Tags -->
+      <div class="tag-sections" id="tag-sections"></div>
+
+      <!-- Notes -->
+      <div class="notes-section">
+        <div class="label">Notes</div>
+        <textarea id="t-notes" placeholder="Additional notes about this font…"></textarea>
+      </div>
+
+      <!-- Actions -->
+      <div class="action-bar">
+        <button class="btn danger" onclick="clearAllTags()">Clear All Tags</button>
+        <label style="display:flex;align-items:center;gap:.5rem;font-family:var(--mono);font-size:.7rem;color:var(--text);cursor:pointer">
+          <input type="checkbox" id="manually-tagged" style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer">
+          <span>Mark as manually tagged</span>
+        </label>
+        <span class="spacer"></span>
+        <button class="btn prime" onclick="saveFont()">Save Tags</button>
+        <button class="btn" onclick="saveAndNext()">Save & Next</button>
+        <button class="btn" onclick="skipFont()">Skip →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Settings -->
+<div class="overlay" id="cfg-modal">
+  <div class="modal">
+    <button class="modal-x" onclick="closeModal('cfg-modal')">✕</button>
+    <h2>Settings</h2>
+    <div class="field"><label>Supabase URL</label><input class="inp" type="text" id="c-url" placeholder="https://xxxx.supabase.co"></div>
+    <div class="field"><label>Supabase Anon Key</label><input class="inp" type="password" id="c-anon" placeholder="eyJ…"></div>
+    <div class="field"><label>Supabase Service Key</label><input class="inp" type="password" id="c-svc" placeholder="eyJ…"></div>
+    <div class="btn-row" style="margin-top:1.25rem">
+      <button class="btn prime" onclick="saveSettings()" style="flex:1">Save</button>
+      <button class="btn" onclick="closeModal('cfg-modal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><div id="toast-spin"></div><span id="toast-txt"></span></div>
+
+<script>
+// ── Config & State ──
+let C = {};
+let S = {
+  serverFonts: [],   // filenames from font server
+  dbFonts: [],       // rows from supabase
+  dbNames: new Set(),// font_name values already in db
+  filter: 'untagged',
+  activeFontFile: null,
+  activeFontName: null,
+  tags: {}
+};
+
+// Tag definitions — New condensed structure
+const TAG_DEFS = {
+  mood: {
+    label: 'Mood',
+    multi: true,
+    values: ['Professional','Friendly','Elegant','Bold','Dark','Playful','Creative','Sophisticated']
+  },
+  era: {
+    label: 'Era',
+    multi: true,
+    values: ['Ancient','Art Deco','Art Nouveau','80s','Baroque','Contemporary','Futuristic','Industrial','Medieval','Mid-Century Modern','90s Grunge','Renaissance','Retro 70s','Victorian','Y2K']
+  },
+  energy_level: {
+    label: 'Energy Level',
+    multi: false,
+    values: ['Low','Medium','High']
+  },
+  weight: {
+    label: 'Weight',
+    multi: false,
+    values: ['Thin','Medium','Bold']
+  },
+  structural_form: {
+    label: 'Structural Form',
+    multi: true,
+    values: ['Serif','Sans-Serif','Script','Rounded','Decorative']
+  },
+  aesthetic_style: {
+    label: 'Aesthetic Style',
+    multi: true,
+    values: ['Brush','Calligraphic','Cartoony','Digital','Distressed','Engraved','Hand Drawn','Ornate','Pixel','Psychedelic','Stencil','Typewriter']
+  },
+  theme: {
+    label: 'Theme',
+    multi: true,
+    values: ['Botanical','Holiday','Military','Nautical','Novelty','Scary','Fantasy','Tribal','Western']
+  }
+};
+
+// ── Init ──
+window.addEventListener('DOMContentLoaded', async () => {
+  loadCfg(); fillCfgForm();
+  buildTagUI();
+  await checkServer();
+  if (C.sbUrl && C.sbAnon) await loadDB();
+  else toast('Open ⚙ Settings to configure Supabase');
+});
+
+// ── Settings ──
+function loadCfg() {
+  C = {
+    sbUrl: ls('wfs_url') || '',
+    sbAnon: ls('wfs_anon') || '',
+    sbSvc: ls('wfs_svc') || '',
+    server: window.location.origin + '/api/fonts' // Cloud server URL
+  };
+}
+function fillCfgForm() {
+  el('c-url').value = C.sbUrl;
+  el('c-anon').value = C.sbAnon;
+  el('c-svc').value = C.sbSvc;
+}
+function saveSettings() {
+  C.sbUrl = el('c-url').value.trim().replace(/\/$/, '');
+  C.sbAnon = el('c-anon').value.trim();
+  C.sbSvc = el('c-svc').value.trim();
+  lsSet('wfs_url', C.sbUrl); lsSet('wfs_anon', C.sbAnon);
+  lsSet('wfs_svc', C.sbSvc);
+  closeModal('cfg-modal');
+  toast('Settings saved', 'ok');
+  checkServer(); loadDB();
+}
+
+// ── Server & Data ──
+async function checkServer() {
+  const dot = el('sdot'), txt = el('stxt');
+  try {
+    const r = await fetch(`${C.server}`);
+    if (!r.ok) throw 0;
+    dot.className = 'dot on'; txt.textContent = 'cloud online';
+    const list = await r.json();
+    S.serverFonts = list;
+    renderList();
+  } catch {
+    dot.className = 'dot off'; txt.textContent = 'cloud offline';
+  }
+}
+
+async function loadDB() {
+  if (!C.sbUrl || !C.sbAnon) return;
+  toast('Loading library…', 'load');
+  try {
+    const r = await fetch(`${C.sbUrl}/rest/v1/fonts?select=*&limit=3000`, {
+      headers: { apikey: C.sbAnon, Authorization: `Bearer ${C.sbAnon}` }
+    });
+    if (!r.ok) throw new Error(await r.text());
+    S.dbFonts = await r.json();
+    S.dbNames = new Set(S.dbFonts.map(f => norm(f.font_name)));
+    renderList();
+    updateProgress();
+    toast(`${S.dbFonts.length} fonts in library`, 'ok');
+  } catch (e) {
+    toast(`Load failed: ${e.message}`, 'err');
+  }
+}
+
+function updateProgress() {
+  const total = S.serverFonts.length;
+  const tagged = S.dbFonts.filter(f => f.manually_tagged === true).length;
+  const pct = total ? Math.round((tagged / total) * 100) : 0;
+  setTimeout(() => {
+    const footerEl = document.querySelector('.list-footer');
+    if (footerEl) {
+      footerEl.innerHTML = `
+        <span id="list-count">${getFilteredFonts().length} shown</span>
+        <span id="list-total" style="color:var(--accent)">${tagged}/${total} tagged (${pct}%)</span>
+      `;
+    }
+  }, 100);
+}
+
+// ── Font list ──
+function setFilter(f) {
+  S.filter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.filter === f);
+  });
+  renderList();
+}
+
+function getFontName(filename) {
+  return filename.replace(/\.(ttf|otf|woff2?|fon)$/i, '');
+}
+
+function norm(s) {
+  return s.toLowerCase().replace(/[\s\-_()\[\]\.]/g, '').replace(/[^a-z0-9]/g, '');
+}
+
+function isTagged(filename) {
+  const dbFont = S.dbFonts.find(f => norm(f.font_name) === norm(getFontName(filename)));
+  return dbFont && dbFont.manually_tagged === true;
+}
+
+function getFilteredFonts() {
+  const q = el('search').value.toLowerCase().trim();
+  return S.serverFonts.filter(f => {
+    if (q && !f.toLowerCase().includes(q)) return false;
+    if (S.filter === 'untagged') return !isTagged(f);
+    if (S.filter === 'tagged') return isTagged(f);
+    return true;
+  });
+}
+
+function renderList() {
+  const fonts = getFilteredFonts();
+  const list = el('font-list');
+  list.innerHTML = '';
+  for (const f of fonts) {
+    const tagged = isTagged(f);
+    const item = document.createElement('div');
+    item.className = 'font-item' + (S.activeFontFile === f ? ' active' : '');
+    item.innerHTML = `
+      <span class="font-item-name" title="${esc(f)}">${esc(getFontName(f))}</span>
+      <span class="font-item-status ${tagged ? 'tagged' : 'untagged'}">${tagged ? 'tagged' : 'new'}</span>
+    `;
+    item.onclick = () => selectFont(f);
+    list.appendChild(item);
+  }
+  updateProgress();
+}
+
+// ── Select & Preview ──
+const loadedFonts = new Set();
+async function loadFont(family, filename) {
+  if (loadedFonts.has(family)) return true;
+  try {
+    const f = new FontFace(family, `url('${C.server}?font=${encodeURIComponent(filename)}')`);
+    await f.load();
+    document.fonts.add(f);
+    loadedFonts.add(family);
+    return true;
+  } catch { return false; }
+}
+
+function toTitleCase(s) { return s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()); }
+
+async function selectFont(filename) {
+  S.activeFontFile = filename;
+  S.activeFontName = getFontName(filename);
+
+  // Reset tags
+  S.tags = {};
+  for (const key of Object.keys(TAG_DEFS)) {
+    S.tags[key] = TAG_DEFS[key].multi ? [] : '';
+  }
+  el('t-notes').value = '';
+
+  // If font is already in DB, load existing tags
+  const existing = S.dbFonts.find(f => norm(f.font_name) === norm(S.activeFontName));
+  if (existing) {
+    for (const key of Object.keys(TAG_DEFS)) {
+      const val = (existing[key] || '').trim();
+      if (TAG_DEFS[key].multi) {
+        S.tags[key] = val ? val.split(';').map(v => v.trim()).filter(Boolean) : [];
+      } else {
+        S.tags[key] = val;
+      }
+    }
+    el('t-notes').value = existing.notes || '';
+    el('manually-tagged').checked = existing.manually_tagged === true;
+  } else {
+    el('manually-tagged').checked = false;
+  }
+
+  // Update UI
+  el('font-title').innerHTML = `<span>${esc(S.activeFontName)}</span>`;
+  el('empty-state').style.display = 'none';
+  el('tagger-content').style.display = 'block';
+  refreshTagUI();
+  renderList(); // Update active state
+
+  // Load font preview
+  const family = 'ft_' + S.activeFontName.replace(/[^a-zA-Z0-9]/g, '_');
+  const loaded = await loadFont(family, filename);
+  if (loaded) {
+    ['pv-upper', 'pv-title', 'pv-lower'].forEach(id => {
+      el(id).style.fontFamily = `'${family}', serif`;
+    });
+  }
+  updatePreviews();
+}
+
+function updatePreviews() {
+  const text = el('preview-text').value || 'Sample Text';
+  el('pv-upper').textContent = text.toUpperCase();
+  el('pv-title').textContent = toTitleCase(text);
+  el('pv-lower').textContent = text.toLowerCase();
+}
+
+// ── Tag UI ──
+function buildTagUI() {
+  const container = el('tag-sections');
+  container.innerHTML = '';
+  for (const [key, def] of Object.entries(TAG_DEFS)) {
+    const section = document.createElement('div');
+    section.className = 'tag-section';
+    section.innerHTML = `
+      <div class="tag-section-name">${def.label}${def.multi ? ' <span style="color:var(--muted);font-size:.5rem;letter-spacing:0;text-transform:none">(pick multiple)</span>' : ''}</div>
+      <div class="tag-options" id="tags-${key}">
+        ${def.values.map(v => `<button class="tag-opt" data-key="${key}" data-val="${esc(v)}" onclick="toggleTag('${key}','${esc(v)}')">${esc(v)}</button>`).join('')}
+      </div>
+      <div class="tag-custom">
+        <input type="text" placeholder="Add custom…" id="custom-${key}" onkeydown="if(event.key==='Enter'){addCustomTag('${key}')}">
+        <button onclick="addCustomTag('${key}')">+</button>
+      </div>
+    `;
+    container.appendChild(section);
+  }
+}
+
+function toggleTag(key, val) {
+  const def = TAG_DEFS[key];
+  if (def.multi) {
+    const idx = S.tags[key].indexOf(val);
+    if (idx >= 0) S.tags[key].splice(idx, 1);
+    else S.tags[key].push(val);
+  } else {
+    S.tags[key] = S.tags[key] === val ? '' : val;
+  }
+  refreshTagUI();
+}
+
+function addCustomTag(key) {
+  const inp = el(`custom-${key}`);
+  const val = inp.value.trim();
+  if (!val) return;
+  const def = TAG_DEFS[key];
+  if (!def.values.includes(val)) def.values.push(val);
+  if (def.multi) {
+    if (!S.tags[key].includes(val)) S.tags[key].push(val);
+  } else {
+    S.tags[key] = val;
+  }
+  inp.value = '';
+  const container = el(`tags-${key}`);
+  container.innerHTML = def.values.map(v =>
+    `<button class="tag-opt" data-key="${key}" data-val="${esc(v)}" onclick="toggleTag('${key}','${esc(v)}')">${esc(v)}</button>`
+  ).join('');
+  refreshTagUI();
+}
+
+function refreshTagUI() {
+  for (const [key, def] of Object.entries(TAG_DEFS)) {
+    const buttons = el(`tags-${key}`).querySelectorAll('.tag-opt');
+    buttons.forEach(btn => {
+      const val = btn.dataset.val;
+      const selected = def.multi ? S.tags[key].includes(val) : S.tags[key] === val;
+      btn.classList.toggle('selected', selected);
+    });
+  }
+}
+
+// ── Clear Tags ──
+function clearAllTags() {
+  if (!S.activeFontName) return toast('No font selected', 'err');
+  if (!confirm(`Clear all tags for "${S.activeFontName}"?\n\nThis will reset all tag fields and notes. Changes aren't saved until you click Save.`)) return;
+  
+  S.tags = {};
+  for (const key of Object.keys(TAG_DEFS)) {
+    S.tags[key] = TAG_DEFS[key].multi ? [] : '';
+  }
+  
+  el('t-notes').value = '';
+  el('manually-tagged').checked = false;
+  
+  refreshTagUI();
+  toast('Tags cleared — remember to save', 'ok');
+}
+
+// ── Save ──
+async function saveFont() {
+  if (!S.activeFontName) return toast('No font selected', 'err');
+  if (!C.sbUrl) return toast('Configure Supabase in Settings', 'err');
+
+  const row = { font_name: S.activeFontName };
+  for (const [key, def] of Object.entries(TAG_DEFS)) {
+    row[key] = def.multi ? S.tags[key].join('; ') : S.tags[key];
+  }
+  row.notes = el('t-notes').value.trim();
+  row.manually_tagged = true; // Always mark as manually tagged when saving
+
+  toast('Saving…', 'load');
+  try {
+    const apiKey = C.sbSvc || C.sbAnon;
+    const r = await fetch(`${C.sbUrl}/rest/v1/fonts?font_name=eq.${encodeURIComponent(S.activeFontName)}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: apiKey,
+        Authorization: `Bearer ${apiKey}`,
+        Prefer: 'return=minimal'
+      },
+      body: JSON.stringify(row)
+    });
+    
+    // If no rows were updated, insert instead
+    if (!r.ok && r.status === 404) {
+      const insertR = await fetch(`${C.sbUrl}/rest/v1/fonts`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: apiKey,
+          Authorization: `Bearer ${apiKey}`,
+          Prefer: 'return=minimal'
+        },
+        body: JSON.stringify([row])
+      });
+      if (!insertR.ok) throw new Error(await insertR.text());
+    } else if (!r.ok) {
+      throw new Error(await r.text());
+    }
+
+    // Update local state
+    const existingIdx = S.dbFonts.findIndex(f => norm(f.font_name) === norm(S.activeFontName));
+    if (existingIdx >= 0) S.dbFonts[existingIdx] = row;
+    else S.dbFonts.push(row);
+    S.dbNames.add(norm(S.activeFontName));
+    
+    // Auto-check the manually tagged checkbox since we just saved
+    el('manually-tagged').checked = true;
+    
+    renderList();
+    updateProgress();
+    toast(`"${S.activeFontName}" saved`, 'ok');
+  } catch (e) {
+    toast(`Save failed: ${e.message}`, 'err');
+  }
+}
+
+async function saveAndNext() {
+  await saveFont();
+  skipFont();
+}
+
+function skipFont() {
+  const fonts = getFilteredFonts();
+  const idx = fonts.indexOf(S.activeFontFile);
+  const next = fonts[idx + 1] || fonts[0];
+  if (next && next !== S.activeFontFile) selectFont(next);
+  else toast('No more fonts in this view', 'ok');
+}
+
+// ── Utilities ──
+function el(id) { return document.getElementById(id); }
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function ls(k) { try { return localStorage.getItem(k); } catch { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch {} }
+function openModal(id) { document.getElementById(id).classList.add('open'); if (id === 'cfg-modal') fillCfgForm(); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+});
+let toastTmr;
+function toast(msg, type = '') {
+  const t = el('toast');
+  el('toast-spin').innerHTML = type === 'load' ? '<div class="spin"></div>' : '';
+  el('toast-txt').textContent = msg;
+  t.className = 'toast show' + (type === 'err' ? ' err' : type === 'ok' ? ' ok' : '');
+  clearTimeout(toastTmr);
+  if (type !== 'load') toastTmr = setTimeout(() => t.classList.remove('show'), 4000);
+}
+</script>
+</body>
+</html>
